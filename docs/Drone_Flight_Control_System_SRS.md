@@ -489,7 +489,7 @@ A requirements traceability matrix (RTM) shall be maintained with at least these
 | FR-030 | Explicit flight states | Flight-state manager | TC-STATE-001 | Planned | Pending |
 | FR-043 | Quad-X motor mixing | Motor mixer | TC-MIX-001 | Planned | Pending |
 | FR-060 | Independent motor disable | Hardware safety path | TC-SAFE-001 | Planned | Pending |
-| FR-070 | Host-buildable portable core | Portable application core | TC-CI-001 | Planned | Pending |
+| FR-070 | Host-buildable portable core | Portable application core | TC-CI-001 | Partial | Local `ctest --preset host-strict` pass (ST-001); CI evidence pending ST-002 |
 
 The RTM shall be expanded to cover every requirement before verification sign-off. A requirement is not verified merely because its implementation exists.
 

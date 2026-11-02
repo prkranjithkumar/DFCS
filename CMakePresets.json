@@ -1,0 +1,41 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "host",
+      "displayName": "Host build (portable core + GoogleTest)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DFCS_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "host-strict",
+      "displayName": "Host build, fail on tool version mismatch (CI)",
+      "inherits": "host",
+      "binaryDir": "${sourceDir}/build/host-strict",
+      "cacheVariables": {
+        "DFCS_STRICT_TOOL_VERSIONS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "host", "configurePreset": "host" },
+    { "name": "host-strict", "configurePreset": "host-strict" }
+  ],
+  "testPresets": [
+    {
+      "name": "host",
+      "configurePreset": "host",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "host-strict",
+      "configurePreset": "host-strict",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

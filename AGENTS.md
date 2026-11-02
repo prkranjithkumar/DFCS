@@ -29,7 +29,7 @@ Testing framework along with examples:
 - Test IDs: `TC-<AREA>-NNN` with areas BOOT, SAFE, SENS, EST, STATE, CTRL, MIX, COMM, SIM, CI. Example: `TC-STATE-001` rejects arming when a pre-arm check fails.
 - Each test cites the FR/NFR it verifies; update the RTM (SRS section 17) with it.
 - Safety paths (inhibit, failsafe, stale sensor, malformed MAVLink) require fault-injection tests.
-- Build and test commands: not defined yet. Add them here once CMake exists.
+- Host build and test: `cmake --preset host`, `cmake --build --preset host`, `ctest --preset host` (CI uses `host-strict`). Pinned tool versions: `tools/tool-versions.cmake`.
 
 Linting and formatting:
 - Cppcheck and Clang-Tidy are the proposed static analysis; critical findings block CI.
