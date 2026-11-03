@@ -3,7 +3,7 @@
 - Story ID: ST-005
 - Branch: feature/st-005-common-types-and-module-interface-docs
 - PR URL: n/a
-- Current state: in progress (S4)
+- Current state: in progress (S6)
 
 ## Stages
 
@@ -12,8 +12,8 @@
 | S1 | Requirement Analysis | done | see git log | Acceptance ID is TC-SENS-011 (user decision); story row still lists TC-SENS-001, follow-up for maintainer |
 | S2 | Unit Test Design | done | 4e1f50f | 41 rows (40 unit, 1 deferred TC-CI-010) |
 | S3 | Unit Test Review | done | see git log | Round 2: Approved (0 blocker, 0 major, 4 minor F-11..F-14); round 1 design seams DD-5..DD-8 added via Requirement Analysis |
-| S4 | Unit Test Automation | pending | - | |
-| S5 | Static validation | pending | - | |
+| S4 | Unit Test Automation | done | see git log | 50 unit rows automated; TC-CI-010 deferred (pytest, T6); CSV Test Target says dfcs_unit_tests, actual target dfcs_unit_tests_ST-005 |
+| S5 | Static validation | done | see git log | All checks pass; no mocks needed (all Mocks=none) |
 | S6 | TDD Implementation | pending | - | |
 | S7 | Wrap-up | pending | - | |
 | S8 | Publish | pending | - | |
