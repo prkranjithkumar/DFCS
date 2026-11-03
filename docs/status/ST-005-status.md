@@ -3,7 +3,7 @@
 - Story ID: ST-005
 - Branch: feature/st-005-common-types-and-module-interface-docs
 - PR URL: n/a
-- Current state: in progress (S3 review loop)
+- Current state: in progress (S4)
 
 ## Stages
 
@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | S1 | Requirement Analysis | done | see git log | Acceptance ID is TC-SENS-011 (user decision); story row still lists TC-SENS-001, follow-up for maintainer |
 | S2 | Unit Test Design | done | 4e1f50f | 41 rows (40 unit, 1 deferred TC-CI-010) |
-| S3 | Unit Test Review | in progress | - | Round 1: Changes required (3 major, 7 minor); F-1/F-2 need design seams, routed via Requirement Analysis |
+| S3 | Unit Test Review | done | see git log | Round 2: Approved (0 blocker, 0 major, 4 minor F-11..F-14); round 1 design seams DD-5..DD-8 added via Requirement Analysis |
 | S4 | Unit Test Automation | pending | - | |
 | S5 | Static validation | pending | - | |
 | S6 | TDD Implementation | pending | - | |
