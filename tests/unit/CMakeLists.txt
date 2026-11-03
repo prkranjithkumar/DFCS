@@ -14,5 +14,13 @@ FetchContent_MakeAvailable(googletest)
 add_executable(dfcs_unit_tests test_host_build.cpp)
 target_link_libraries(dfcs_unit_tests PRIVATE dfcs::core GTest::gtest_main)
 
+add_executable(dfcs_unit_tests_ST-005
+  test_fake_clock.cpp
+  test_fault_code.cpp
+  test_monotonic_clock.cpp
+  test_status.cpp)
+target_link_libraries(dfcs_unit_tests_ST-005 PRIVATE dfcs::core GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(dfcs_unit_tests)
+gtest_discover_tests(dfcs_unit_tests_ST-005)
