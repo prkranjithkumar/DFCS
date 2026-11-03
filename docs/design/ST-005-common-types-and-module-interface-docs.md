@@ -79,10 +79,10 @@ Assumptions:
 
 | Path | Content |
 |---|---|
-| `firmware/application/include/dfcs/fault_code.hpp`, `src/fault_code.cpp` | `FaultCode`, table, `to_string(FaultCode)` |
-| `firmware/application/include/dfcs/status.hpp`, `src/status.cpp` | `StatusCode`, `Status`, `Result<T>`, `to_string(StatusCode)` |
-| `firmware/application/include/dfcs/monotonic_clock.hpp` | `TimestampUs`, `MonotonicClock`, `elapsed_us()` |
-| `tests/unit/fake_clock.hpp` | `FakeClock` (test double, not shipped in the core) |
+| `firmware/application/include/dfcs/fault_code.hpp`, `src/fault_code.cpp` | `FaultCode`, `kFaultCodeCount`, `FaultCodeEntry`, `FaultCodeTable`, `fault_code_table()`, `to_string(FaultCode)` |
+| `firmware/application/include/dfcs/status.hpp`, `src/status.cpp` | `StatusCode`, `kStatusCodeCount`, `Status`, `Result<T>`, `to_string(StatusCode)` |
+| `firmware/application/include/dfcs/monotonic_clock.hpp` | `TimestampUs` (with comparison operators), `MonotonicClock`, `elapsed_us()` |
+| `tests/unit/fake_clock.hpp` | `FakeClock` (test double, not shipped in the core), namespace `dfcs::test` |
 | `docs/architecture/module-interfaces.md` | Module-interface document |
 | `tests/automation/test_module_interfaces_doc.py` | Document completeness check |
 
@@ -92,6 +92,7 @@ Assumptions:
 
 ```cpp
 struct TimestampUs { std::uint64_t value; };   // microseconds since an arbitrary origin
+// constexpr noexcept ==, !=, <, <=, >, >= compare `value` only.
 
 class MonotonicClock {
  public:
@@ -114,19 +115,48 @@ Contract for every implementation (hardware, Gazebo bridge, fake):
 - `later >= earlier` returns the difference.
 - `later < earlier` returns an error `Status{InvalidArgument, FaultCode::TIME_NON_MONOTONIC}`; it never returns 0 or a wrapped value, so a backward clock cannot make old data look fresh (consumed by ST-021).
 
-`FakeClock` (test only): constructed at a given time; `advance(delta_us)` moves forward; `set(t)` returns an error and leaves time unchanged if `t` is earlier than the current time. Overflow on `advance` saturates at the maximum value and returns an error status.
+`elapsed_us` takes two `TimestampUs` values, not a clock. It is a pure function of its arguments and has no clock dependency. No unit in ST-005 consumes a `MonotonicClock` other than `FakeClock` implementing it, so no stub-clock or injection seam is needed in ST-005. The first consumer of a clock is ST-021 (stale-data check); clock-injection tests belong to that story.
+
+`FakeClock` (test only, `tests/unit/fake_clock.hpp`, namespace `dfcs::test`):
+
+```cpp
+class FakeClock final : public MonotonicClock {
+ public:
+  explicit constexpr FakeClock(TimestampUs start = TimestampUs{0}) noexcept;
+  TimestampUs now() const noexcept override;           // returns current value, no side effect
+  Status advance(std::uint64_t delta_us) noexcept;
+  Status set(TimestampUs t) noexcept;
+};
+```
+
+| Operation | Condition | Resulting time | Returned `Status` |
+|---|---|---|---|
+| `advance(d)` | `d <= max - current` (includes `d == 0` and landing exactly on max) | `current + d` | `Status::ok()` |
+| `advance(d)` | `d > max - current` (would overflow; includes any `d > 0` at max) | saturates at `max` (`UINT64_MAX`) | `Status::error(StatusCode::OutOfRange)`, fault `NONE` |
+| `set(t)` | `t >= current` (equal time is accepted, time unchanged in value) | `t` | `Status::ok()` |
+| `set(t)` | `t < current` | unchanged | `Status::error(StatusCode::InvalidArgument, FaultCode::TIME_NON_MONOTONIC)` |
+
+- Return type is `Status` (`[[nodiscard]]` via the type, 5.4); tests assert `is_ok()`, `code` and `fault`.
+- Overflow on `advance` is test-double misuse, not a system fault, so its fault code is `NONE`. A backward `set` uses the same pair as `elapsed_us` backward time.
+- `now()` between operations never decreases, including after a rejected `set` or a saturated `advance`.
 
 ### 5.3 Fault codes
 
 ```cpp
 enum class FaultCode : std::uint16_t { NONE = 0, /* see table */ };
 const char* to_string(FaultCode) noexcept;     // never null; unknown value -> "UNKNOWN"
+
+inline constexpr std::size_t kFaultCodeCount = 13;   // enumerators incl. NONE; edited with the enum
+struct FaultCodeEntry { FaultCode code; const char* name; };
+struct FaultCodeTable { const FaultCodeEntry* entries; std::size_t size; };
+FaultCodeTable fault_code_table() noexcept;    // the table `to_string` searches; read-only, static storage
 ```
 
 Rules:
-- Explicit numeric values; high byte is the category, low byte the item.
+- Explicit numeric values; high byte is the category, low byte the item. Category `0xFF` is reserved and never allocated, so `static_cast<FaultCode>(0xFFFF)` is guaranteed unknown.
 - Append-only: a published value is never reused or renumbered. Names are upper-case ASCII with underscores.
-- Table-driven: one `constexpr` table of `{code, name}`; `to_string` does a bounded linear search; no `std::string`, no formatting, no I/O.
+- Table-driven: one `constexpr` table of `{code, name}`; `to_string` does a bounded linear search over `fault_code_table()`; no `std::string`, no formatting, no I/O.
+- Completeness seam (DD-5): `kFaultCodeCount` is the enumerator count, declared next to the enum. A test checks `fault_code_table().size == kFaultCodeCount`, that each entry has a unique code and name, and that `to_string(entry.code)` returns `entry.name`. A new enumerator requires the enum, `kFaultCodeCount` and the table to change together. C++17 has no enum reflection and no sentinel is added to the enum (codes are sparse and a sentinel would be a valid-looking value); an enumerator added without changing the count is not detectable by test and is covered by review.
 - The registry carries no severity and no response. Response per class is ST-015 (FR-066).
 - Mapping to MAVLink or telemetry fields: TBD (OD-010).
 
@@ -173,9 +203,11 @@ template <class T> class [[nodiscard]] Result {   // T: trivially copyable, defa
   constexpr const T& value() const noexcept;      // precondition: is_ok()
 };
 const char* to_string(StatusCode) noexcept;      // unknown value -> "UNKNOWN"
+inline constexpr std::size_t kStatusCodeCount = 9;   // contiguous 0..kStatusCodeCount-1; Internal stays last
 ```
 
 Rules:
+- `StatusCode` values are contiguous from 0, so no table accessor is needed: a test iterates `0..kStatusCodeCount-1`, checks each `to_string` is unique, non-empty, printable and not `"UNKNOWN"`, and that `kStatusCodeCount` itself prints `"UNKNOWN"`. A new enumerator is appended before the count is raised (DD-5).
 - No default constructor for `Status` or `Result`: an uninitialized outcome cannot silently read as success.
 - `Rejected` and `Unsupported` mean the request was refused with no side effect on actuator state (FR-032, FR-033, FR-054). Detailed rejection reasons (FR-035) belong to ST-012 and ST-050.
 - `StatusCode` describes an operation outcome; `FaultCode` describes a diagnosable system condition. They stay separate; a function may return both through `Status`.
@@ -241,16 +273,18 @@ ST-005 contains no actuator path and cannot change actuator state. Fail-safe pro
 |---|---|---|
 | NFR-008 | Headers include only `<cstdint>`, `<cstddef>`, `<type_traits>`. No STM32 or FreeRTOS types. Clock adapters for hardware live in `hal`/`drivers`/`rtos`; ST-004 (`TC-CI-004`) enforces the include ban in CI. | `TC-CI-004` (ST-004), `TC-SENS-010` (`static_assert` on value types) |
 | NFR-005 | All types are value types with static storage. `to_string` returns string literals. No `new`, `std::string`, `std::vector`, `std::function`. `FakeClock` is a test-only object. | `TC-SENS-010` (trivially copyable, no heap use by construction); review |
-| NFR-001 | `now()` contract is non-blocking and bounded. `to_string` is a bounded search of a small constant table. No printf, console, file or network access. Virtual dispatch on `now()` is bounded; cost to be measured under NFR-003. | `TC-SENS-011`, `TC-SENS-009` (`noexcept` and bounded behavior); timing measured later (`TC-CI-007`, ST-076) |
+| NFR-001 | `now()` contract is non-blocking and bounded. `to_string` is a bounded search of a small constant table. No printf, console, file or network access. Virtual dispatch on `now()` is bounded; cost to be measured under NFR-003. | Structural only (`noexcept` `static_assert`, no I/O by construction): `TC-SENS-011` (`to_string(FaultCode)`, `fault_code_table()`, `FakeClock`), `TC-SENS-009` (`elapsed_us`), `TC-SENS-010` (`Status`, `Result`, `to_string(StatusCode)`); timing measured later (`TC-CI-007`, ST-076) |
 
 ## 7. Test design
 
 | Test ID | Framework | FR/NFR verified | Fault injection | Cases |
 |---|---|---|---|---|
-| `TC-SENS-011` (ST-005 acceptance; story row lists `TC-SENS-001`, see 3.3) | GoogleTest | FR-011, NFR-013 | Yes | (a) `FakeClock` is non-decreasing over repeated `advance`; equal reads allowed; `set` to an earlier time is rejected and time unchanged; (b) every `FaultCode` has a unique value and a unique, non-empty, printable-ASCII name; the table covers every enumerator; `NONE == 0` |
-| `TC-SENS-009` (new) | GoogleTest | FR-011 | Yes | `elapsed_us`: equal gives 0; later gives difference; later < earlier returns `TIME_NON_MONOTONIC` (not 0, not wrapped); maximum-value boundary; `FakeClock::advance` saturation reports error |
-| `TC-SENS-010` (new) | GoogleTest | NFR-013, NFR-009 | Yes | `Status`/`Result`: factories, `value_or` on failure, `failure(Ok)` coerced to `Internal`; `to_string(StatusCode)` unique and printable; out-of-range cast of `FaultCode` and `StatusCode` gives `"UNKNOWN"`; `static_assert` trivially copyable and `noexcept` |
+| `TC-SENS-011` (ST-005 acceptance; story row lists `TC-SENS-001`, see 3.3) | GoogleTest | FR-011, NFR-013, NFR-001 (structural) | Yes | (a) `FakeClock` (5.2): non-decreasing over repeated `advance`; equal reads allowed; `advance` returns `Status::ok()` on success; `set` to an equal time returns ok; `set` to an earlier time returns `Status{InvalidArgument, TIME_NON_MONOTONIC}` and time is unchanged; (b) every `FaultCode` has a unique value and a unique, non-empty, printable-ASCII name; completeness via the seam (5.3): `fault_code_table().size == kFaultCodeCount`, `to_string(entry.code) == entry.name` for each entry, and each 5.3 enumerator is present in the table; `NONE == 0`; `static_assert` `noexcept` on `to_string(FaultCode)`, `fault_code_table()` and `FakeClock` members |
+| `TC-SENS-009` (new) | GoogleTest | FR-011, NFR-001 (structural) | Yes | `elapsed_us` takes timestamps only (5.2): equal gives 0; later gives difference; later < earlier returns `TIME_NON_MONOTONIC` (not 0, not wrapped); maximum-value boundary; `FakeClock::advance` overflow returns `Status{OutOfRange, NONE}` and saturates at max; `advance` landing exactly on max returns ok; no case uses a clock stub |
+| `TC-SENS-010` (new) | GoogleTest | NFR-013, NFR-001 (structural) | Yes | `Status`/`Result`: factories, `value_or` on failure, `failure(Ok)` coerced to `Internal`; `to_string(StatusCode)` unique and printable for `0..kStatusCodeCount-1`; out-of-range value gives `"UNKNOWN"` for `StatusCode` (`kStatusCodeCount`) and `FaultCode` (`0xFFFF`, reserved category, also absent from the table); `static_assert` trivially copyable and `noexcept` |
 | `TC-CI-010` (new) | pytest | NFR-009 | No (seeded negative case) | Interface doc has a section for each `firmware/*` module folder and `simulation/bridge`, each with all required fields non-empty; seeded missing section is detected |
+
+FR-071 is supported (the interface is shared by adapters) but not verified in ST-005; it is verified when the hardware and simulation adapters exist, so no ST-005 test cites it. NFR-009 unit-level evidence is by-copy value types only (supporting, not a verification); its verification is `TC-CI-010` plus review, so `TC-SENS-010` does not cite it.
 
 Next-free IDs: highest used are `TC-SENS-010` (this design) and `TC-CI-009`. `TC-SENS-001` is reserved for SRS 11.3 (FR-012, stale IMU sample rejected) and is not used by ST-005.
 
@@ -281,6 +315,10 @@ The FR-012 row and SRS 11.3 keep `TC-SENS-001`; no change is made to them.
 | DD-2: time unit and width | Decided: `uint64_t` microseconds. Never wraps in practice and avoids 32-bit rollover handling. Resolution itself stays TBD (OD-005) |
 | DD-3: interface-doc location and `TC-CI-010` wiring | Decided: `docs/architecture/module-interfaces.md` (Appendix A) and pytest in `tests/automation/`, run by a documented command. CI and ctest registration is deferred to ST-002 |
 | DD-4: `core_info` placeholder | Decided: keep. TC-CI-001 evidence from ST-001 depends on it; retire in a separate change |
+| DD-5: fault/status completeness seam | Decided: `kFaultCodeCount`, `fault_code_table()` for `FaultCode`; `kStatusCodeCount` for `StatusCode` (5.3, 5.4). Residual limit: no reflection in C++17, so an enumerator added without updating the count is caught by review only |
+| DD-6: `FakeClock` signatures | Decided: `Status advance(std::uint64_t)` and `Status set(TimestampUs)`; semantics in the 5.2 table (equal-time `set` accepted; overflow saturates and returns `OutOfRange`/`NONE`; backward `set` returns `InvalidArgument`/`TIME_NON_MONOTONIC`) |
+| DD-7: no clock-consuming unit in ST-005 | Decided: `elapsed_us` takes timestamps; no stub-clock seam; clock-injection tests belong to ST-021 |
+| DD-8: trace links | Decided: FR-071 not cited by ST-005 tests; NFR-009 not cited by `TC-SENS-010`; NFR-001 is structural evidence in `TC-SENS-011`, `009`, `010` (section 6). `FaultCode` out-of-range test value is `0xFFFF` (reserved category) and must also be absent from the table, so appended codes in category `0x07` do not break it |
 
 ## 10. Risks and dependencies
 
@@ -299,10 +337,10 @@ The FR-012 row and SRS 11.3 keep `TC-SENS-001`; no change is made to them.
 
 | # | Task | Size | Independently testable by |
 |---|---|---|---|
-| T1 | `FaultCode`, table, `to_string`; add sources to `dfcs_core` CMake | S | `TC-SENS-011` part (b) |
-| T2 | `StatusCode`, `Status`, `Result<T>`, `to_string(StatusCode)` | S | `TC-SENS-010` (needs T1) |
-| T3 | `TimestampUs`, `MonotonicClock`, `elapsed_us` | S | `TC-SENS-009` (needs T2) |
-| T4 | `FakeClock` in `tests/unit` | S | `TC-SENS-011` part (a) (needs T3) |
+| T1 | `FaultCode`, `kFaultCodeCount`, table, `fault_code_table()`, `to_string`; add sources to `dfcs_core` CMake | S | `TC-SENS-011` part (b) |
+| T2 | `StatusCode`, `kStatusCodeCount`, `Status`, `Result<T>`, `to_string(StatusCode)` | S | `TC-SENS-010` (needs T1) |
+| T3 | `TimestampUs` (with operators), `MonotonicClock`, `elapsed_us` | S | `TC-SENS-009` (needs T2) |
+| T4 | `FakeClock` (`Status advance`, `Status set`) in `tests/unit` | S | `TC-SENS-011` part (a), `TC-SENS-009` advance cases (needs T3) |
 | T5 | Write `docs/architecture/module-interfaces.md` | M | Review against NFR-009 |
 | T6 | `TC-CI-010` pytest check under `tests/automation/` (first test creates the folder) | S | Runs green; seeded missing section fails (needs T5) |
 | T7 | RTM rows (section 8, using `TC-SENS-011`), `docs/development_log.md` entry (notes the story-row ID follow-up from 3.3), `core_info.cpp` comment update | S | Review; `ctest --preset host-strict` still passes |
