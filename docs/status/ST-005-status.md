@@ -3,7 +3,7 @@
 - Story ID: ST-005
 - Branch: feature/st-005-common-types-and-module-interface-docs
 - PR URL: n/a
-- Current state: in progress (T5-T7 remaining)
+- Current state: in progress (S8 publish)
 
 ## Stages
 
@@ -15,7 +15,7 @@
 | S4 | Unit Test Automation | done | see git log | 50 unit rows automated; TC-CI-010 deferred (pytest, T6); CSV Test Target says dfcs_unit_tests, actual target dfcs_unit_tests_ST-005 |
 | S5 | Static validation | done | see git log | All checks pass; no mocks needed (all Mocks=none) |
 | S6 | TDD Implementation | done | see git log | host and host-strict: 52/52 pass (verified by orchestrator) |
-| S7 | Wrap-up | pending | - | |
+| S7 | Wrap-up | done | see git log | Dev log entry added (index-only; pre-existing log edits left unstaged); T5 doc written |
 | S8 | Publish | pending | - | |
 
 ## Design sub-tasks
@@ -26,6 +26,6 @@
 | T2 StatusCode, Status, Result<T> (S) | done | see git log |
 | T3 TimestampUs, MonotonicClock, elapsed_us (S) | done | see git log |
 | T4 FakeClock in tests/unit (S) | done | 1168b93 |
-| T5 docs/architecture/module-interfaces.md (M) | pending | - |
-| T6 TC-CI-010 pytest check under tests/automation (S) | pending | - |
-| T7 RTM rows, development log entry, core_info.cpp comment (S) | pending | - |
+| T5 docs/architecture/module-interfaces.md (M) | done | see git log |
+| T6 TC-CI-010 pytest check under tests/automation (S) | deferred (Python not installed on dev host) | - |
+| T7 RTM rows, development log entry, core_info.cpp comment (S) | partial: dev log done; RTM rows and comment pending | see git log |
