@@ -1,12 +1,15 @@
 # ST-005 Unit Test Spec Review
 
+## Review round 2
+
 | Field | Value |
 |---|---|
 | Story ID | ST-005 |
 | Spec | `docs/test-specs/ST-005-unit-tests.csv` |
-| Design | `docs/design/ST-005-common-types-and-module-interface-docs.md` |
+| Design | `docs/design/ST-005-common-types-and-module-interface-docs.md` (updated, section 9 DD-5 to DD-8) |
+| Previous report | Round 1: 0 blockers, 3 majors (F-1 to F-3), 7 minors (F-4 to F-10), verdict `Changes required` |
 | Date | 2026-11-03 |
-| Verdict | **Changes required** |
+| Verdict | **Approved** |
 
 POC only; this review makes no certification, flight-readiness or safety claim (NFR-017). Acceptance ID `TC-SENS-011` is a user decision (design 3.3) and is not treated as a defect.
 
@@ -14,46 +17,55 @@ POC only; this review makes no certification, flight-readiness or safety claim (
 
 | Item | Count |
 |---|---|
-| Unit cases | 40 (TC-SENS-011: 15, TC-SENS-009: 12, TC-SENS-010: 13), plus 1 deferred row (TC-CI-010) |
+| Unit cases | 50 (TC-SENS-011: 21, TC-SENS-009: 15, TC-SENS-010: 14), plus 1 deferred row (TC-CI-010) |
 | Blockers | 0 |
-| Majors | 3 |
-| Minors | 7 |
+| Majors | 0 |
+| Minors | 4 (all new in round 2; none carried over) |
+
+## Prior-finding resolution
+
+| Prior ID | Prior severity | Resolution | Status | Evidence |
+|---|---|---|---|---|
+| F-1 | major | Completeness seam added per DD-5 (`kFaultCodeCount`, `fault_code_table()`, `kStatusCodeCount`). New cases check table size, each design enumerator present once, `to_string` equals entry name, and the `StatusCode` count. Iteration cases now use the real table. Residual limit (no C++17 reflection) is stated by the design and cited in the Notes. | Resolved | TC-SENS-011.11 to .13 (real table), .16, .17, .18; TC-SENS-010.8, .14; design 5.3, 5.4, 7 |
+| F-2 | major | `FakeClock::advance` and `set` return `Status` (DD-6). Expected values are exact: `Status{Ok, NONE}`, `Status{OutOfRange, NONE}`, `Status{InvalidArgument, TIME_NON_MONOTONIC}`; time unchanged after rejection. Every row of the design 5.2 table has a case. | Resolved | TC-SENS-011.2 to .6; TC-SENS-009.10, .11, .13, .14 |
+| F-3 | major | Stub-clock case removed (former 009.8). No case needs a clock injection seam (DD-7). | Resolved | TC-SENS-009 has no .8; remaining `elapsed_us` cases take timestamps only. See F-14 for a residual Mocks entry on 009.9 |
+| F-4 | minor | Out-of-range `FaultCode` value is `0xFFFF` (reserved category 0xFF), also asserted absent from the table (DD-8). | Resolved | TC-SENS-010.10; design 5.3 |
+| F-5 | minor | `Result.value_or` failure case relabelled from `boundary` to `invalid`. | Resolved | TC-SENS-010.6 |
+| F-6 | minor | Argument lists use `,` inside quoted cells; `;` is used only for multi-value fields and clause separation. | Resolved | TC-SENS-010.3, .5; TC-SENS-009.12 |
+| F-7 | minor | Case is self-contained: all 13 value/name pairs and the category byte rule are listed and match design 5.3. | Resolved | TC-SENS-011.9 |
+| F-8 | minor | NFR-009 removed from the value-type case; Notes explain verification is TC-CI-010 plus review (DD-8). | Resolved | TC-SENS-010.4; deferred row TC-CI-010 |
+| F-9 | minor | FR-071 no longer cited by any case; Notes state adapters are verified with the adapters (DD-8). | Resolved | TC-SENS-011.7 |
+| F-10 | minor | NFR-001 is cited by structural `noexcept` cases in all three TCs, matching design section 6. | Resolved | TC-SENS-011.19, TC-SENS-009.12, TC-SENS-010.13 |
 
 ## Check results
 
 | # | Check | Result | Note |
 |---|---|---|---|
-| 1 | CSV validity | pass | Header equals the template header; 21 columns on every row (manual count; the validator script was not run); Case IDs and Test Names unique; deferred row has empty unit columns. Minor F-6 on `;` inside single-value cells. |
-| 2 | Coverage | fail | All design section 7 TCs present (011, 009, 010 unit; CI-010 deferred). FR-011, NFR-013 mapped. Design 7 statement "table covers every enumerator" cannot be verified (F-1). New IDs 009, 010, CI-010 are flagged `new` and are next free (checked against SRS and stories). Minors F-8, F-9, F-10 on link mismatches. |
-| 3 | Case quality | fail | Each TC has nominal, boundary and invalid rows. F-2 (unspecified return type makes Expected non-exact), F-3 (redundant case), F-5, F-7. |
-| 4 | Safety | pass | Design 5.7 and 7: no actuator path, no inhibit/failsafe/stale-sensor/malformed-input path in ST-005; `Safety Path` is correctly empty. Own failure modes have fault-injection cases (backward time 011.6, 009.4, 009.6, 009.7; out-of-range enums 010.9, 010.10; failed result 010.5; no default-constructed success 010.12). |
-| 5 | Behavior and isolation | pass | No external dependency is used by any case (value types, pure function, test-only `FakeClock`); `Mocks` is `none` or lists the stub. No real time, I/O, threads or allocation. Static-assert cases check public type properties only. F-3 notes a misleading mock entry. |
-| 6 | TBD handling | pass | Symbolic values throughout; OD-005, OD-012, OD-014 cited where relevant. Numbers used (0x0001, 0x0703, maximum uint8/uint16/uint64, 13 and 9 enumerator counts) trace to design 5.3/5.4 or type limits. F-4 on 0x0703. |
-| 7 | Automation readiness | pass | `dfcs_unit_tests` exists in `tests/unit/CMakeLists.txt`; new test files and `fake_clock.hpp` are creatable and must be added to that target. Framework, Target, File and Name set for all 40 unit rows. |
+| 1 | CSV validity | pass | Header equals the 21-column format in `csv-format.md`. Column count verified by inspection on every row (the validator script was not run). Case IDs and Test Names are unique. Multi-value cells use `;`. Case IDs are not contiguous (TC-SENS-009 skips .8 after the removal); the format does not require contiguity. |
+| 2 | Coverage | pass | Every design section 7 TC is present: TC-SENS-011, 009, 010 at unit level; TC-CI-010 deferred. FR-011, NFR-013 and NFR-001 map to unit cases; NFR-009 maps to deferred TC-CI-010 (design 7, DD-8). New IDs 009, 010, CI-010 are flagged `new` and are next free in the area. Every design 5.2 table row, 5.3 rule and 5.4 rule has a case. |
+| 3 | Case quality | pass | Each TC has nominal, boundary and invalid cases. Expected values are exact and observable. Minors F-11 (missing symbolic bounds), F-12, F-13. |
+| 4 | Safety | pass | Design 5.7 and 7: ST-005 has no actuator, inhibit, failsafe, stale-sensor or malformed-input path; `Safety Path` is correctly empty. Own failure modes have fault-injection cases: backward clock (011.6, 009.4, 009.6, 009.7), saturating overflow (009.11, 009.13), out-of-range enums (010.9, 010.10), failed results (010.5, 010.6, 010.7); no default-constructed success (010.12). Every `fault` type case has `Fault Injection=Y`. |
+| 5 | Behavior and isolation | pass | All cases use public interfaces; none asserts private state. No external dependency exists (value types, pure function, test-only `FakeClock`); `Mocks` is `none` except 009.9 (F-14, minor). No real time, I/O, threads or allocation. The design has no clock-consuming unit in ST-005 (DD-7), so no seam is missing. |
+| 6 | TBD handling | pass | Symbolic or relational values throughout; OD-005 (011.3, 009.2), OD-012 (011.19, 009.12, 010.13), OD-014 (011.9) cited. Numeric values (13, 9, 0xFFFF, 0xFF, category bytes, enumerator values) trace to design 5.3 and 5.4; the rest are type limits. |
+| 7 | Automation readiness | pass | Framework, Test Target, Test File and Test Name set on all 50 unit rows. `dfcs_unit_tests` exists in `tests/unit/CMakeLists.txt`; `test_fake_clock.cpp`, `test_fault_code.cpp`, `test_monotonic_clock.cpp`, `test_status.cpp` and `fake_clock.hpp` are creatable and must be added to that target. |
 
 ## Findings
 
 | ID | Severity | Case ID | Source | Finding | Required fix |
 |---|---|---|---|---|---|
-| F-1 | major | TC-SENS-011.9 to .14; TC-SENS-010.8 | Design 7 (TC-SENS-011 (b): "the table covers every enumerator"); CSV Notes of 011.11 | The completeness requirement is not covered by any case. Every case iterates a test-local list copied from design 5.3, so an enumerator added without a table entry (or a table entry for a missing enumerator) is not detected. The spec records this as a design gap but leaves the design requirement unverified. | Raise the gap to Requirement Analysis to add a testable seam (for example a registry count/accessor or sentinel) and then add a case; or have the design explicitly drop or re-scope the "covers every enumerator" statement. Same for `StatusCode` (010.8). |
-| F-2 | major | TC-SENS-011.2 to .6; TC-SENS-009.10; TC-SENS-009.11 | Design 5.2 (`FakeClock`: `advance(delta_us)`, `set(t)`) | Expected results ("returns ok", "returns an error (is_ok() is false)") assume a return type that the design does not define for `FakeClock::advance` and `FakeClock::set`. 5.2 says only "returns an error status" for advance overflow and "returns an error" for set. The Expected value is therefore not exact or observable as written. | Obtain a signature decision for `advance` and `set` (return type, and StatusCode/FaultCode of the errors) from Requirement Analysis, then restate Expected exactly. Correct the Notes of 009.11, which claim the return type is unspecified although 5.2 states a status is returned. |
-| F-3 | major | TC-SENS-009.8 | Design 5.2 (`elapsed_us` takes `TimestampUs`, not a clock); case rules (one behavior per case) | The scripted-clock stub only supplies two timestamps; the behavior under test is `elapsed_us(later < earlier)`, identical to 009.6. The listed mock `MonotonicClock(stub)` is not consumed by any unit under test, and the Notes claim a missing injection seam that does not exist for this behavior. | Remove the case, or redefine it against a real unit that consumes a clock (none exists in ST-005) and move it to the owning story (ST-021). |
-| F-4 | minor | TC-SENS-010.10 | Design 5.3 (append-only; owner stories add codes) | The value 0x0703 is asserted as "unknown", but 5.3 allows owner stories to append codes in category 0x07. A legitimate append would fail this test. | Express the out-of-range value relationally (a value not present in the registry list) or use a value outside all categories derived from 5.3. |
-| F-5 | minor | TC-SENS-010.6 | Case quality | Type `boundary` is a mislabel: `value_or` on a failed result is a nominal failure path, not a boundary. | Relabel as `invalid` or `nominal`, or add a real boundary. |
-| F-6 | minor | TC-SENS-009.8, 009.12, 010.3, 010.5 | CSV format (`;` is the multi-value separator) | `;` is used as an argument separator inside Stimulus/Preconditions text, for example `Status::error(DeviceError; SENSOR_BUS_ERROR)`. This is ambiguous with the multi-value separator. | Use `,` inside quoted text. |
-| F-7 | minor | TC-SENS-011.9 | Design 5.3 table | Expected says "equals its table value" without listing the values; the case is not self-contained. | Reference the design table by row or list the value/name pairs. |
-| F-8 | minor | TC-SENS-010.4 | Design 6/7 (NFR-009), SRS NFR-009 (review) | NFR-009 (documented interfaces and ownership) is cited on a value-holding case that does not verify documentation. The only meaningful verification is deferred TC-CI-010 plus review. | Keep the link only if the design requires it; otherwise note that unit-level evidence for NFR-009 is by-copy only. |
-| F-9 | minor | TC-SENS-011.7, TC-SENS-009.8 | Design 7 and 8 (FR/NFR verified) | FR-071 is cited but is not in the design 7 FR/NFR column or the RTM rows for these TCs (it is listed only as related, 3.2). | Remove FR-071 or have the design add it to section 7/8. |
-| F-10 | minor | TC-SENS-010.13 | Design 6 (NFR-001 verified by TC-SENS-011, TC-SENS-009) | NFR-001 is cited on a TC-SENS-010 case; the design lists TC-SENS-011 and TC-SENS-009 for NFR-001, and TC-SENS-011 has no NFR-001 case. | Align design 6 and the CSV on which TCs verify NFR-001. |
+| F-11 | minor | TC-SENS-009.3, TC-SENS-009.4 | Design 5.2 (`elapsed_us`); case-derivation (precondition clarity) | Preconditions give `later = earlier.value + 1` (009.3) and `earlier = later.value + 1` (009.4) with no bound on the symbolic base. At the maximum uint64 value the sum wraps and the expected result no longer holds. 009.9 and 009.11 state their bounds. | State that the symbolic base is below the maximum uint64 value. |
+| F-12 | minor | TC-SENS-011.14 | Design 5.3 (names are "upper-case ASCII with underscores") | The case asserts upper-case letters and underscores only, which is stricter than the design wording; a later owner-story name containing a digit would fail it. The Notes record the design gap. | Have the design state whether digits are allowed, then align Expected; until then keep the Notes entry. |
+| F-13 | minor | TC-SENS-011.19 | Design 6 (NFR-001 structural evidence) | One case in `test_fake_clock.cpp` under suite `FakeClock` asserts `noexcept` for `to_string(FaultCode)` and `fault_code_table()` as well as the `FakeClock` members. The `FaultCode` part sits outside its natural file and suite, and the case mixes two units. | Split into a `FaultCode` case in `test_fault_code.cpp` and a `FakeClock` case in `test_fake_clock.cpp`; the new Case ID is flagged `new`. |
+| F-14 | minor | TC-SENS-009.9 | Design 5.2, DD-7 ("no case uses a clock stub"); csv-format (`Mocks`) | `Mocks` lists `MonotonicClock(fake)`, but `elapsed_us` takes `TimestampUs` values and consumes no clock; `FakeClock` is the unit under test in other cases. The entry reads as a mocked dependency that does not exist. | Set `Mocks` to `none` and keep the FakeClock note in Notes. |
 
 ## Coverage matrix
 
 | FR/NFR | TC IDs | Case IDs |
 |---|---|---|
-| FR-011 | TC-SENS-011, TC-SENS-009 | 011.1 to 011.7; 009.1 to 009.12 |
-| NFR-013 | TC-SENS-011, TC-SENS-010 | 011.8 to 011.15; 010.1 to 010.13 |
-| NFR-009 | TC-CI-010 (deferred), TC-SENS-010 | deferred row; 010.4 (see F-8) |
-| FR-071 (related) | TC-SENS-011, TC-SENS-009 | 011.7; 009.8 (see F-9) |
-| NFR-001 (related) | TC-SENS-009, TC-SENS-010 | 009.12; 010.13 (see F-10) |
+| FR-011 | TC-SENS-011, TC-SENS-009 | 011.1 to 011.7, 011.20, 011.21; 009.1 to 009.7, 009.9 to 009.16 (009.12 also NFR-001) |
+| NFR-013 | TC-SENS-011, TC-SENS-010 | 011.8 to 011.18; 010.1 to 010.14 |
+| NFR-009 | TC-CI-010 (deferred; plus review) | Deferred row, no unit case (design 7, DD-8) |
+| NFR-001 (structural) | TC-SENS-011, TC-SENS-009, TC-SENS-010 | 011.19; 009.12; 010.13 |
 | NFR-005 (related) | TC-SENS-010 | 010.11 (by construction only) |
 | NFR-008 (related) | TC-SENS-010 | 010.11 (include ban enforced by TC-CI-004, ST-004) |
+| FR-071 (related) | none in ST-005 | Not cited, per design DD-8 |
