@@ -3,7 +3,7 @@
 - Story ID: ST-005
 - Branch: feature/st-005-common-types-and-module-interface-docs
 - PR URL: n/a
-- Current state: in progress (S8 publish)
+- Current state: branch pushed, awaiting manual PR creation
 
 ## Stages
 
@@ -16,7 +16,7 @@
 | S5 | Static validation | done | see git log | All checks pass; no mocks needed (all Mocks=none) |
 | S6 | TDD Implementation | done | see git log | host and host-strict: 52/52 pass (verified by orchestrator) |
 | S7 | Wrap-up | done | see git log | Dev log entry added (index-only; pre-existing log edits left unstaged); T5 doc written |
-| S8 | Publish | pending | - | |
+| S8 | Publish | blocked | - | Branch pushed; no gh CLI or PR tool available, PR must be opened manually; marker stays IN PROGRESS |
 
 ## Design sub-tasks
 
