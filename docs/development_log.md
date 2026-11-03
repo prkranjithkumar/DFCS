@@ -1,5 +1,12 @@
 # DFCS Development Log
 
+## 2026-11-03 - Initial GitHub Actions CI/CD pipeline
+
+- Added `.github/workflows/cicd.yml`: hosted Windows strict host build/tests and reports, explicit blocked HEX packaging, CodeQL C++ and Gitleaks security scans, and an unconditionally disabled AWS deployment placeholder (FR-070, NFR-010, NFR-016, NFR-017).
+- Kept existing local tool pins; added hosted Python, checksum-verified WinLibs provisioning, Gitleaks and CodeQL bundle pins to `tools/tool-versions.cmake`. GitHub Actions use immutable commit pins.
+- Documented setup, security gates and limitations in `docs/ci-cd.md`. HEX packaging remains blocked by the absent STM32 target and Arm toolchain (ST-073), as agreed. AWS credentials, deployment and firmware flashing are not implemented.
+- Verified: actionlint 1.7.12 passes with only the intentional constant-false AWS condition allowed (ShellCheck/Pyflakes unavailable); CMake Tools host build succeeds and all 52 host tests pass; `git diff --check` passes. The hosted `host-strict` workflow, scanner execution and firmware HEX generation are not verified locally. Private-repository CodeQL requires GitHub Code Security entitlement.
+
 ## 2026-11-02 - ST-001 host build foundation
 
 - Added root `CMakeLists.txt`, `CMakePresets.json` (`host`, `host-strict`), `cmake/DfcsToolCheck.cmake` and the version manifest `tools/tool-versions.cmake`.
