@@ -20,7 +20,7 @@ Numeric values (gains, rates, thresholds, pin maps, timing/coverage) are TBD per
 | ST-002 | As a reviewer, PRs run host build + tests and fail on error | S | P0 | NFR-014 | ST-001 | `TC-CI-002`: deliberately failing test turns the pipeline red |
 | ST-003 | As a maintainer, static analysis (Cppcheck, Clang-Tidy) runs in CI | M | P0 | NFR-012, NFR-014 | ST-002 | `TC-CI-003`: seeded critical finding blocks CI. Sub-tasks: ST-003.a propose formatter/coding standard/config (decision, no silent adoption); ST-003.b wire tools with pinned versions |
 | ST-004 | As an architect, a check fails the build if core code includes HAL/FreeRTOS headers | S | P0 | NFR-008 | ST-001 | `TC-CI-004`: seeded forbidden include is detected |
-| ST-005 | **[UNDER REVIEW 2026-11-03]** As a developer, I have common types: monotonic time interface, fault-code enum, result/status types, module-interface docs | M | P0 | FR-011, NFR-009, NFR-013 | ST-001 | `TC-SENS-001`: fake clock is monotonic; fault codes unique and printable |
+| ST-005 | **[UNDER REVIEW 2026-11-03]** As a developer, I have common types: monotonic time interface, fault-code enum, result/status types, module-interface docs | M | P0 | FR-011, NFR-009, NFR-013 | ST-001 | `TC-SENS-011`: fake clock is monotonic; fault codes unique and printable |
 
 ## Wave 2 - State machine and safety gate (portable core)
 
