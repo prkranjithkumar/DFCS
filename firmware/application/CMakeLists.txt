@@ -1,5 +1,8 @@
 # Portable core library. core_info is a placeholder so the host build has something to link and test.
-add_library(dfcs_core STATIC src/core_info.cpp)
+add_library(dfcs_core STATIC
+  src/core_info.cpp
+  src/fault_code.cpp
+  src/status.cpp)
 add_library(dfcs::core ALIAS dfcs_core)
 
 target_include_directories(dfcs_core PUBLIC include)
