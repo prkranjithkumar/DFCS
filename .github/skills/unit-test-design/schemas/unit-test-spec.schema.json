@@ -1,0 +1,44 @@
+{
+  "$comment": "Column contract for docs/test-specs/<STORY-ID>-unit-tests.csv. Read by scripts/Test-UnitTestSpec.ps1. Column order is the CSV order.",
+  "version": 1,
+  "file": {
+    "namePattern": "^ST-\\d{3}-unit-tests\\.csv$",
+    "encoding": "UTF-8",
+    "delimiter": ",",
+    "multiValueSeparator": ";",
+    "newlinesInCells": false
+  },
+  "levels": ["unit", "deferred"],
+  "areas": ["BOOT", "SAFE", "SENS", "EST", "STATE", "CTRL", "MIX", "COMM", "SIM", "CI"],
+  "columns": [
+    { "name": "Story ID", "required": "always", "pattern": "^ST-\\d{3}$" },
+    { "name": "TC ID", "required": "always", "pattern": "^TC-(BOOT|SAFE|SENS|EST|STATE|CTRL|MIX|COMM|SIM|CI)-\\d{3}$" },
+    { "name": "Case ID", "required": "unit", "emptyWhenDeferred": true, "pattern": "^TC-(BOOT|SAFE|SENS|EST|STATE|CTRL|MIX|COMM|SIM|CI)-\\d{3}\\.\\d+$" },
+    { "name": "Level", "required": "always", "enum": ["unit", "deferred"] },
+    { "name": "Title", "required": "always" },
+    { "name": "Requirements", "required": "always", "pattern": "^(FR|NFR)-\\d{3}(;(FR|NFR)-\\d{3})*$" },
+    { "name": "Design Section", "required": "always" },
+    { "name": "Framework", "required": "always", "enum": ["GoogleTest", "Unity", "pytest"] },
+    { "name": "Test Target", "required": "unit" },
+    { "name": "Test File", "required": "unit", "pattern": "^tests/unit/[^\\s]+$" },
+    { "name": "Test Name", "required": "unit", "pattern": "^[A-Za-z_]\\w*\\.[A-Za-z_]\\w*$" },
+    { "name": "Preconditions", "required": "unit", "emptyWhenDeferred": true },
+    { "name": "Mocks", "required": "unit" },
+    { "name": "Stimulus", "required": "unit", "emptyWhenDeferred": true },
+    { "name": "Expected", "required": "unit", "emptyWhenDeferred": true },
+    { "name": "Type", "required": "unit", "enum": ["nominal", "boundary", "invalid", "fault"] },
+    { "name": "Fault Injection", "required": "unit", "enum": ["Y", "N"] },
+    { "name": "Safety Path", "required": "optional", "enum": ["inhibit", "failsafe", "stale-sensor", "malformed-input"] },
+    { "name": "Open Decisions", "required": "optional", "pattern": "^TBD \\(OD-\\d{3}\\)(;TBD \\(OD-\\d{3}\\))*$" },
+    { "name": "Status", "required": "always", "enum": ["Planned"] },
+    { "name": "Notes", "required": "optional" }
+  ],
+  "crossRules": [
+    "Case ID starts with '<TC ID>.'",
+    "Case ID unique; Test Name unique",
+    "Type=fault implies Fault Injection=Y",
+    "Safety Path set implies Fault Injection=Y",
+    "Each TC with unit rows has Type nominal, boundary and invalid",
+    "Story ID equals the Story ID in the file name"
+  ]
+}
